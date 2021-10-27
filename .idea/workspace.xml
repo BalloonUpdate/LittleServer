@@ -5,6 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ac704d18-1563-4949-85bb-8e9b504f69c3" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/gradle.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/gradle.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/kotlin/LittleServerMain.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/LittleServerMain.kt" afterDir="false" />
     </list>
@@ -94,7 +95,7 @@
       <ExternalSystemSettings>
         <option name="env">
           <map>
-            <entry key="DBG_VERSION" value="0.0.1" />
+            <entry key="DBG_VERSION" value="0.0.2" />
           </map>
         </option>
         <option name="executionName" />

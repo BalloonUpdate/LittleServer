@@ -1,4 +1,5 @@
 import com.esotericsoftware.yamlbeans.YamlException
+import com.sun.jna.Platform
 import fi.iki.elonen.NanoHTTPD
 import fi.iki.elonen.SimpleWebServer
 import jna.Kernel32
@@ -32,7 +33,8 @@ class LittleServerMain(
         println("启动成功!")
 
         Thread {
-            Kernel32.Ins.SetConsoleTitleA("文件更新助手服务端单文件版v${ManifestUtil.version}")
+            if(Platform.isWindows())
+                Kernel32.Ins.SetConsoleTitleA("文件更新助手服务端单文件版v${ManifestUtil.version}")
         }.start()
     }
 
