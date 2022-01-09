@@ -35,7 +35,7 @@ class LittleServerMain(
 
         Thread {
             if(Platform.isWindows())
-                Kernel32.Ins.SetConsoleTitleA("文件更新助手服务端单文件版v${ManifestUtil.version}")
+                Kernel32.Ins.SetConsoleTitleA("单文件服务端 ${ManifestUtil.version}")
         }.start()
     }
 
@@ -253,8 +253,6 @@ class LittleServerMain(
 
             try {
                 val configYaml = YamlUtil.fromYaml(configFile.content)
-
-                println(configYaml)
 
                 val host = configYaml["host"]?.run { this as String } ?: "0.0.0.0"
                 val port = configYaml["port"]?.run { this as Int } ?: 8850
