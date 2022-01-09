@@ -1,8 +1,7 @@
-import com.esotericsoftware.yamlbeans.YamlException
 import com.sun.jna.Platform
 import fi.iki.elonen.NanoHTTPD
-import fi.iki.elonen.SimpleWebServer
 import jna.Kernel32
+import org.yaml.snakeyaml.error.YAMLException
 import util.FileObj
 import util.ManifestUtil
 import util.YamlUtil
@@ -12,6 +11,8 @@ import java.io.IOException
 import java.net.BindException
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.LinkedHashMap
 import kotlin.system.exitProcess
 
 
@@ -19,12 +20,12 @@ class LittleServerMain(
     host: String?,
     port: Int,
     val baseDir: FileObj,
-    val configYaml: LinkedHashMap<String, Any>
+    val configYaml: HashMap<String, Any>
 ) : NanoHTTPD(host, port) {
     private val fmt = SimpleDateFormat("YYYY-MM-dd HH:mm:ss")
 
     init {
-        println("正在启动文件更新助手服务端单文件版v${ManifestUtil.version}-${ManifestUtil.gitCommit}")
+        println("正在启动文件更新助手服务端单文件版v${ManifestUtil.version}-${ManifestUtil.gitCommit.substring(0, 8)}")
         println("Listening on: $host:$port")
 
         start(SOCKET_READ_TIMEOUT, false)
@@ -80,7 +81,7 @@ class LittleServerMain(
                 ne.remove("port")
                 return getYamlResponse(ne)
             } else if (dir != null && dir.exists && dir.isDirectory) { // 返回目录结构信息
-                return getYamlResponse(hashDir(dir))
+                return getYamlResponse(hashDir(dir).map { it.toHashMap() })
             } else { // 下载文件
                 val file = baseDir + uri.substring(1)
 
@@ -129,7 +130,7 @@ class LittleServerMain(
         return newFixedLengthResponse(
             Response.Status.OK,
             MIME_PLAINTEXT,
-            reindent(YamlUtil.toYaml(yaml).replace(Regex("!.+\\r?\\n *(?= ?\\w)"), ""))// 去掉Yaml类型标记
+            reindent(YamlUtil.toYaml(yaml))//.replace(Regex("!.+\\r?\\n *(?= ?\\w)"), ""))// 去掉Yaml类型标记
         )
     }
 
@@ -216,7 +217,21 @@ class LittleServerMain(
         var length: Long = -1,
         var hash: String = "",
         var children: ArrayList<FileStructure>? = null
-    )
+    ) {
+        fun toHashMap(): LinkedHashMap<String, Any>
+        {
+            val map = LinkedHashMap<String, Any>()
+            map["name"] = name
+            map["length"] = length
+            map["hash"] = hash
+
+            val c = ArrayList<LinkedHashMap<String, Any>>()
+            children?.forEach { c.add(it.toHashMap()) }
+
+            map["children"] = c
+            return map
+        }
+    }
 
     companion object {
         @JvmStatic
@@ -237,13 +252,15 @@ class LittleServerMain(
             }
 
             try {
-                val configYaml = YamlUtil.fromYaml<LinkedHashMap<String, Any>>(configFile.content)
+                val configYaml = YamlUtil.fromYaml(configFile.content)
+
+                println(configYaml)
 
                 val host = configYaml["host"]?.run { this as String } ?: "0.0.0.0"
-                val port = configYaml["port"]?.run { Integer.valueOf(this as String) } ?: 8850
+                val port = configYaml["port"]?.run { this as Int } ?: 8850
 
                 LittleServerMain(host, port, baseDir, configYaml)
-            } catch (e: YamlException) {
+            } catch (e: YAMLException) {
                 println("配置文件读取出错(格式不正确)，位置和原因: ${e.cause?.message}")
                 exitProcess(1)
             } catch (e: BindException) {

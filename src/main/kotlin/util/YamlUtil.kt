@@ -1,27 +1,19 @@
 package util
 
-import LittleServerMain
-import com.esotericsoftware.yamlbeans.YamlReader
-import com.esotericsoftware.yamlbeans.YamlWriter
-import java.io.ByteArrayOutputStream
-import java.io.PrintWriter
+import org.yaml.snakeyaml.DumperOptions
+import org.yaml.snakeyaml.Yaml
 
 object YamlUtil
 {
-    fun <T> fromYaml(yaml: String): T
+    fun fromYaml(yaml: String): HashMap<String, Any>
     {
-        val reader = YamlReader(yaml)
-        return reader.read().also { reader.close() } as T
+        return Yaml().load(yaml)
     }
 
     fun toYaml(obj: Any): String
     {
-        val buf = ByteArrayOutputStream()
-        val writer = YamlWriter(PrintWriter(buf))
-        writer.config.setClassTag("FileObject", LittleServerMain.FileStructure::class.java)
-//        writer.config.setPropertyElementType(LittleServerMain.FileStructure::class.java, "children", LittleServerMain.FileStructure::class.java)
-        writer.write(obj)
-        writer.close()
-        return buf.toByteArray().decodeToString()
+        val opt = DumperOptions()
+        opt.lineBreak = DumperOptions.LineBreak.WIN
+        return Yaml(opt).dumpAs(obj, null, DumperOptions.FlowStyle.BLOCK)
     }
 }
