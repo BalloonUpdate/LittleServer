@@ -2,10 +2,11 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.util.Date
 import java.text.SimpleDateFormat
 
+fun getVersionName(tagName: String) = if(tagName.startsWith("v")) tagName.substring(1) else tagName
 val gitTagName: String? get() = Regex("(?<=refs/tags/).*").find(System.getenv("GITHUB_REF") ?: "")?.value
 val gitCommitSha: String? get() = System.getenv("GITHUB_SHA") ?: null
 val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS Z").format(Date()) as String
-val versionText: String get() = System.getenv("DBG_VERSION") ?: "0.0.0"
+val debugVersion: String get() = System.getenv("DBG_VERSION") ?: "0.0.0"
 
 plugins {
     kotlin("jvm") version "1.5.10"
@@ -17,20 +18,17 @@ val author = "Asforest"
 val website = "https://github.com/updater-for-minecraft/LittleServer"
 
 group = "com.github.updater-for-minecraft"
-version = gitTagName ?: versionText
+version = gitTagName?.run { getVersionName(this) } ?: debugVersion
 
 repositories {
-    maven("https://maven.aliyun.com/nexus/content/groups/public/")
     mavenCentral()
 }
 
 dependencies {
-//    implementation("org.yaml:snakeyaml:1.29")
     implementation("net.java.dev.jna:jna:5.9.0")
-    implementation("com.esotericsoftware.yamlbeans:yamlbeans:1.15")
+    implementation("org.yaml:snakeyaml:1.30")
     implementation("org.nanohttpd:nanohttpd:2.2.0")
     implementation("org.nanohttpd:nanohttpd-webserver:2.2.0")
-    // implementation(fileTree("libs") {include("*.jar")})
 
     testImplementation(kotlin("test"))
 }
