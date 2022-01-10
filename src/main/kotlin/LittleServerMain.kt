@@ -222,13 +222,18 @@ class LittleServerMain(
         {
             val map = LinkedHashMap<String, Any>()
             map["name"] = name
-            map["length"] = length
-            map["hash"] = hash
 
-            val c = ArrayList<LinkedHashMap<String, Any>>()
-            children?.forEach { c.add(it.toHashMap()) }
+            if(length != -1L)
+            {
+                map["length"] = length
+                map["hash"] = hash
+            } else {
+                val c = ArrayList<LinkedHashMap<String, Any>>()
+                children?.forEach { c.add(it.toHashMap()) }
 
-            map["children"] = c
+                map["children"] = c
+            }
+
             return map
         }
     }

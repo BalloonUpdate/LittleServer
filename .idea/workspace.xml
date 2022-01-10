@@ -4,10 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ac704d18-1563-4949-85bb-8e9b504f69c3" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/gradle.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/gradle.xml" afterDir="false" />
+    <list default="true" id="ac704d18-1563-4949-85bb-8e9b504f69c3" name="Changes" comment="refactor: 移除调试信息">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/LittleServerMain.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/LittleServerMain.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config.yml" beforeDir="false" afterPath="$PROJECT_DIR$/config.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/util/YamlUtil.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/util/YamlUtil.kt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -88,9 +88,31 @@
   <component name="RunAnythingCache">
     <option name="myCommands">
       <command value="gradle jar" />
+      <command value="gradle build" />
     </option>
   </component>
-  <component name="RunManager" selected="Gradle.LittleServer [jar]">
+  <component name="RunManager" selected="Kotlin.LittleServerMain">
+    <configuration name="LittleServer [build]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value="build" />
+          </list>
+        </option>
+        <option name="vmOptions" value="" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <method v="2" />
+    </configuration>
     <configuration name="LittleServer [jar]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
       <ExternalSystemSettings>
         <option name="env">
@@ -124,12 +146,14 @@
     </configuration>
     <list>
       <item itemvalue="Gradle.LittleServer [jar]" />
+      <item itemvalue="Gradle.LittleServer [build]" />
       <item itemvalue="Kotlin.LittleServerMain" />
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Gradle.LittleServer [jar]" />
         <item itemvalue="Kotlin.LittleServerMain" />
+        <item itemvalue="Gradle.LittleServer [build]" />
+        <item itemvalue="Gradle.LittleServer [jar]" />
       </list>
     </recent_temporary>
   </component>
@@ -142,9 +166,47 @@
       <option name="presentableId" value="Default" />
       <updated>1634700379957</updated>
     </task>
+    <task id="LOCAL-00001" summary="ci: 去除版本号里的v">
+      <created>1641744133398</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1641744133398</updated>
+    </task>
+    <task id="LOCAL-00002" summary="fix: 修复int和string混淆的问题">
+      <created>1641744159636</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1641744159636</updated>
+    </task>
+    <task id="LOCAL-00003" summary="refactor: 移除调试信息">
+      <created>1641744600782</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1641744600782</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
+    <MESSAGE value="ci: 去除版本号里的v" />
+    <MESSAGE value="fix: 修复int和string混淆的问题" />
+    <MESSAGE value="refactor: 移除调试信息" />
+    <option name="LAST_COMMIT_MESSAGE" value="refactor: 移除调试信息" />
   </component>
 </project>
