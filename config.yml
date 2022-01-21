@@ -2,5 +2,5 @@
 port: 8000
 
 common_mode:
-  - .minecraft/mods/*
+  - .minecraft/**
 once_mode: []

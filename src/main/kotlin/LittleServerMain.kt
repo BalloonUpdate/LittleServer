@@ -1,18 +1,15 @@
 import com.sun.jna.Platform
 import fi.iki.elonen.NanoHTTPD
 import jna.Kernel32
+import org.json.JSONArray
+import org.json.JSONObject
+import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.error.YAMLException
 import util.FileObj
 import util.ManifestUtil
-import util.YamlUtil
 import java.io.File
-import java.io.FileInputStream
-import java.io.IOException
 import java.net.BindException
 import java.text.SimpleDateFormat
-import java.util.*
-import kotlin.collections.ArrayList
-import kotlin.collections.LinkedHashMap
 import kotlin.system.exitProcess
 
 
@@ -25,12 +22,12 @@ class LittleServerMain(
     private val fmt = SimpleDateFormat("YYYY-MM-dd HH:mm:ss")
 
     init {
-        println("正在启动文件更新助手服务端单文件版v${ManifestUtil.version}-${ManifestUtil.gitCommit.substring(0, 8)}")
+        println("正在启动文件更新助手服务端单文件版-${ManifestUtil.version} (${ManifestUtil.gitCommit.substring(0, 8)})")
         println("Listening on: $host:$port")
 
         start(SOCKET_READ_TIMEOUT, false)
 
-        println("API地址: http://"+(if(host == "0.0.0.0") "127.0.0.1" else host)+":$port/index.yml (从外网访问请使用对应的外网IP/域名)")
+        println("API地址: http://"+(if(host == "0.0.0.0") "127.0.0.1" else host)+":$port/index.json (从外网访问请使用对应的外网IP/域名)")
         println("启动成功!")
 
         Thread {
@@ -39,6 +36,9 @@ class LittleServerMain(
         }.start()
     }
 
+    /**
+     * 服务主函数
+     */
     override fun serve(session: IHTTPSession): Response
     {
         val timestamp = fmt.format(System.currentTimeMillis())
@@ -53,7 +53,11 @@ class LittleServerMain(
         return res
     }
 
-    fun serve2(session: IHTTPSession): Response
+    /**
+     * 服务处理过程
+     */
+    @Suppress("NOTHING_TO_INLINE")
+    inline fun serve2(session: IHTTPSession): Response
     {
         try {
             var uri = session.uri
@@ -63,186 +67,65 @@ class LittleServerMain(
             uri = if ('?' in uri) uri.substring(0, uri.indexOf('?')) else uri
 
             // Prohibit getting out of current directory
-            if ("../" in uri) {
-                return getForbiddenResponse("Won't serve ../ for security reasons.")
-            }
+            if ("../" in uri)
+                return ResponseHelper.buildForbiddenResponse("Won't serve ../ for security reasons.")
 
             // 返回目录结构信息
-            val regex = Regex("(?<=^/)[^/]+(?=\\.yml\$)")
+            val regex = Regex("(?<=^/)[^/]+(?=\\.json\$)")
             val dir = if(regex.find(uri) != null) FileObj(regex.find(uri)!!.value) else null
 
             // Rewrite
-            if(uri == "/index.yml") // 返回index信息
+            if(uri == "/index.json") // 返回index信息
             {
                 val ne = LinkedHashMap<String, Any>()
                 ne["update"] = "res"
                 ne.putAll(configYaml)
                 ne.remove("host")
                 ne.remove("port")
-                return getYamlResponse(ne)
+                return ResponseHelper.buildJsonTextResponse(JSONObject(ne).toString(4))
             } else if (dir != null && dir.exists && dir.isDirectory) { // 返回目录结构信息
-                return getYamlResponse(hashDir(dir).map { it.toHashMap() })
+                return ResponseHelper.buildJsonTextResponse(JSONArray(hashDir(dir)).toString())
             } else { // 下载文件
                 val file = baseDir + uri.substring(1)
 
                 if(!file.exists)
-                    return getNotFoundResponse(uri)
+                    return ResponseHelper.buildNotFoundResponse(uri)
 
                 if(file.isDirectory)
-                    return getForbiddenResponse("Directory is unable to show")
+                    return ResponseHelper.buildForbiddenResponse("Directory is unable to show")
 
                 if(file.isFile)
-                    return getFileResponse(file)
+                    return ResponseHelper.buildFileResponse(file)
 
-                return getPlainTextResponse(uri)
+                return ResponseHelper.buildPlainTextResponse(uri)
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            return getInternalErrorResponse(e.stackTraceToString())
+            return ResponseHelper.buildInternalErrorResponse(e.stackTraceToString())
         }
     }
 
-    fun getFileResponse(file: FileObj): Response
+    fun hashDir(directory: FileObj): ArrayList<AbstractSimpleFileObject>
     {
-        return try {
-            newFixedLengthResponse(
-                Response.Status.OK,
-                "application/octet-stream",
-                FileInputStream(file._file),
-                file.length.toInt().toLong()
-            ).also {
-                it.addHeader("Content-Length", file.length.toString())
-            }
-        } catch (e: IOException) {
-            getForbiddenResponse("Reading file failed.")
-        }
-    }
-
-    fun getPlainTextResponse(text: String): Response {
-        return newFixedLengthResponse(
-            Response.Status.OK,
-            MIME_PLAINTEXT,
-            text
-        )
-    }
-
-    fun getYamlResponse(yaml: Any): Response {
-        return newFixedLengthResponse(
-            Response.Status.OK,
-            MIME_PLAINTEXT,
-            reindent(YamlUtil.toYaml(yaml))//.replace(Regex("!.+\\r?\\n *(?= ?\\w)"), ""))// 去掉Yaml类型标记
-        )
-    }
-
-    fun reindent(str: String): String
-    {
-        fun countSpace(text: String, cb: (count: Int, char: Char) -> Unit)
-        {
-            var stopChar: Char = ' '
-            var count = 0
-            for (c in text)
-                if(c == ' ') {
-                    count += 1
-                } else {
-                    stopChar = c
-                    break
-                }
-            cb(count, stopChar)
-        }
-
-        val sb = StringBuffer()
-        for (line in str.split("\n"))
-        {
-            countSpace(line) { count, char ->
-                if(count > 0 && count % 2 == 1)
-                {
-                    if(char=='-')
-                        sb.append(" $line")
-                    else
-                        sb.append(line.substring(1))
-                } else {
-                    sb.append(line)
-                }
-            }
-
-        }
-        return sb.toString()
-    }
-
-    fun getForbiddenResponse(s: String): Response
-    {
-        return newFixedLengthResponse(
-            Response.Status.FORBIDDEN,
-            MIME_PLAINTEXT,
-            "FORBIDDEN: $s"
-        )
-    }
-
-    fun getInternalErrorResponse(s: String): Response
-    {
-        return newFixedLengthResponse(
-            Response.Status.INTERNAL_ERROR,
-            MIME_PLAINTEXT,
-            "INTERNAL ERROR: $s"
-        )
-    }
-
-    fun getNotFoundResponse(path: String): Response
-    {
-        return newFixedLengthResponse(
-            Response.Status.NOT_FOUND,
-            MIME_PLAINTEXT,
-            "Error 404, file not found: $path"
-        )
-    }
-
-    fun hashDir(directory: FileObj): ArrayList<FileStructure>
-    {
-        val ds = ArrayList<FileStructure>()
+        val ds = ArrayList<AbstractSimpleFileObject>()
         if(directory.exists && directory.isDirectory)
         {
             for (file in directory)
             {
                 if(file.isFile)
-                    ds += FileStructure(file.name, length = file.length, hash = file.sha1)
+                    ds += SimpleFileObject(file.name, length = file.length, hash = file.sha1, modified = file.modified / 1000)
                 if(file.isDirectory)
-                    ds += FileStructure(file.name, children = hashDir(file))
+                    ds += SimpleDirectoryObject(file.name, children = hashDir(file))
             }
         }
         return ds
     }
 
-    data class FileStructure(
-        var name: String = "",
-        var length: Long = -1,
-        var hash: String = "",
-        var children: ArrayList<FileStructure>? = null
-    ) {
-        fun toHashMap(): LinkedHashMap<String, Any>
-        {
-            val map = LinkedHashMap<String, Any>()
-            map["name"] = name
-
-            if(length != -1L)
-            {
-                map["length"] = length
-                map["hash"] = hash
-            } else {
-                val c = ArrayList<LinkedHashMap<String, Any>>()
-                children?.forEach { c.add(it.toHashMap()) }
-
-                map["children"] = c
-            }
-
-            return map
-        }
-    }
-
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            var baseDir = FileObj(System.getProperty("user.dir"))
-            var configFile = baseDir + "config.yml"
+            val baseDir = FileObj(System.getProperty("user.dir"))
+            val configFile = baseDir + "config.yml"
 
             if(!baseDir.exists)
             {
@@ -257,7 +140,7 @@ class LittleServerMain(
             }
 
             try {
-                val configYaml = YamlUtil.fromYaml(configFile.content)
+                val configYaml = Yaml().load(configFile.content) as HashMap<String, Any>
 
                 val host = configYaml["host"]?.run { this as String } ?: "0.0.0.0"
                 val port = configYaml["port"]?.run { this as Int } ?: 8850
