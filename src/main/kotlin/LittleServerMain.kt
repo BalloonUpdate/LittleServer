@@ -23,6 +23,7 @@ class LittleServerMain(
 
     init {
         println("正在启动文件更新助手服务端单文件版-${ManifestUtil.version} (${ManifestUtil.gitCommit.substring(0, 8)})")
+        println("如果本程序显示报错信息后，但程序本身并未崩溃，请忽略报错信息。")
         println("Listening on: $host:$port")
 
         start(SOCKET_READ_TIMEOUT, false)
