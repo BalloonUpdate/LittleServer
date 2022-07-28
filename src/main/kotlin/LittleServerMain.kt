@@ -23,14 +23,10 @@ class LittleServerMain(
     private val fmt = SimpleDateFormat("YYYY-MM-dd HH:mm:ss")
 
     init {
-        println("正在启动文件更新助手服务端单文件版-${ManifestUtil.version} (${ManifestUtil.gitCommit.substring(0, 8)})")
-        println("如果本程序显示报错信息后，但程序本身并未崩溃，请忽略报错信息。")
+        println("文件更新助手服务端单文件版-${ManifestUtil.version} (${ManifestUtil.gitCommit.substring(0, 8)})")
         println("Listening on: $host:$port")
-
         start(SOCKET_READ_TIMEOUT, false)
-
-        println("API地址: http://"+(if(host == "0.0.0.0") "127.0.0.1" else host)+":$port/index.json (从外网访问请使用对应的外网IP/域名)")
-        println("启动成功!")
+        println("启动成功! API地址: http://"+(if(host == "0.0.0.0") "127.0.0.1" else host)+":$port/index.json (从外网访问请使用对应的外网IP/域名)")
 
         Thread {
             if(Platform.isWindows())
@@ -51,7 +47,9 @@ class LittleServerMain(
         val uri = session.uri
         val ip: String = session.javaClass.getDeclaredField("remoteIp").also { it.isAccessible = true }.get(session) as String
 
-        println(String.format("[ %s ] %3s | %-15s | %s (%dms)", timestamp, statusCode, ip, uri, timeSpent))
+        if (res.status != Response.Status.INTERNAL_ERROR)
+            println(String.format("[ %s ] %3s | %-15s | %s (%dms)", timestamp, statusCode, ip, uri, timeSpent))
+
         return res
     }
 
@@ -102,7 +100,7 @@ class LittleServerMain(
                 return ResponseHelper.buildPlainTextResponse(uri)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+//            e.printStackTrace()
             return ResponseHelper.buildInternalErrorResponse(e.stackTraceToString())
         }
     }
