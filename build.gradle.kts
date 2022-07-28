@@ -9,7 +9,7 @@ val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS Z").format(Date()) as 
 val debugVersion: String get() = System.getenv("DBG_VERSION") ?: "0.0.0"
 
 plugins {
-    kotlin("jvm") version "1.5.10"
+    kotlin("jvm") version "1.6.10"
     application
 }
 

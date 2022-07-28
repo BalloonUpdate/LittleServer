@@ -16,6 +16,7 @@ import kotlin.system.exitProcess
 class LittleServerMain(
     host: String?,
     port: Int,
+    val plainHttpServer: Boolean,
     val baseDir: FileObj,
     val configYaml: HashMap<String, Any>
 ) : NanoHTTPD(host, port) {
@@ -76,7 +77,7 @@ class LittleServerMain(
             val dir = if(regex.find(uri) != null) FileObj(regex.find(uri)!!.value) else null
 
             // Rewrite
-            if(uri == "/index.json") // 返回index信息
+            if(!plainHttpServer && uri == "/index.json") // 返回index信息
             {
                 val ne = LinkedHashMap<String, Any>()
                 ne["update"] = "res"
@@ -84,7 +85,7 @@ class LittleServerMain(
                 ne.remove("host")
                 ne.remove("port")
                 return ResponseHelper.buildJsonTextResponse(JSONObject(ne).toString(4))
-            } else if (dir != null && dir.exists && dir.isDirectory) { // 返回目录结构信息
+            } else if (!plainHttpServer && dir != null && dir.exists && dir.isDirectory) { // 返回目录结构信息
                 return ResponseHelper.buildJsonTextResponse(JSONArray(hashDir(dir)).toString())
             } else { // 下载文件
                 val file = baseDir + uri.substring(1)
@@ -145,8 +146,9 @@ class LittleServerMain(
 
                 val host = configYaml["host"]?.run { this as String } ?: "0.0.0.0"
                 val port = configYaml["port"]?.run { this as Int } ?: 8850
+                val plainHttpServer = configYaml["plain-http-server"]?.run { this as Boolean } ?: false
 
-                LittleServerMain(host, port, baseDir, configYaml)
+                LittleServerMain(host, port, plainHttpServer, baseDir, configYaml)
             } catch (e: YAMLException) {
                 println("配置文件读取出错(格式不正确)，位置和原因: ${e.cause?.message}")
                 exitProcess(1)
