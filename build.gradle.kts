@@ -25,10 +25,10 @@ repositories {
 }
 
 dependencies {
-    implementation("org.json:json:20211205")
+    implementation("org.json:json:20220320")
     implementation("org.yaml:snakeyaml:1.30")
-    implementation("org.nanohttpd:nanohttpd:2.2.0")
-    implementation("org.nanohttpd:nanohttpd-webserver:2.2.0")
+    implementation("org.nanohttpd:nanohttpd:2.3.1")
+    implementation("org.nanohttpd:nanohttpd-webserver:2.3.1")
 
     testImplementation(kotlin("test"))
 }
