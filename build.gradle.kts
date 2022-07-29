@@ -25,7 +25,6 @@ repositories {
 }
 
 dependencies {
-    implementation("net.java.dev.jna:jna:5.9.0")
     implementation("org.json:json:20211205")
     implementation("org.yaml:snakeyaml:1.30")
     implementation("org.nanohttpd:nanohttpd:2.2.0")

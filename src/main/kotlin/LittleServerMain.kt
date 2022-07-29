@@ -1,6 +1,4 @@
-import com.sun.jna.Platform
 import fi.iki.elonen.NanoHTTPD
-import jna.Kernel32
 import org.json.JSONArray
 import org.json.JSONObject
 import org.yaml.snakeyaml.Yaml
@@ -14,25 +12,13 @@ import kotlin.system.exitProcess
 
 
 class LittleServerMain(
-    host: String?,
-    port: Int,
+    val host: String?,
+    val port: Int,
     val plainHttpServer: Boolean,
     val baseDir: FileObj,
     val configYaml: HashMap<String, Any>
 ) : NanoHTTPD(host, port) {
     private val fmt = SimpleDateFormat("YYYY-MM-dd HH:mm:ss")
-
-    init {
-        println("文件更新助手服务端单文件版-${ManifestUtil.version} (${ManifestUtil.gitCommit.substring(0, 8)})")
-        println("Listening on: $host:$port")
-        start(SOCKET_READ_TIMEOUT, false)
-        println("启动成功! API地址: http://"+(if(host == "0.0.0.0") "127.0.0.1" else host)+":$port/index.json (从外网访问请使用对应的外网IP/域名)")
-
-        Thread {
-            if(Platform.isWindows())
-                Kernel32.Ins.SetConsoleTitleA("单文件服务端 ${ManifestUtil.version}")
-        }.start()
-    }
 
     /**
      * 服务主函数
@@ -47,8 +33,7 @@ class LittleServerMain(
         val uri = session.uri
         val ip: String = session.javaClass.getDeclaredField("remoteIp").also { it.isAccessible = true }.get(session) as String
 
-        if (res.status != Response.Status.INTERNAL_ERROR)
-            println(String.format("[ %s ] %3s | %-15s | %s (%dms)", timestamp, statusCode, ip, uri, timeSpent))
+        println(String.format("[ %s ] %3s | %-15s | %s (%dms)", timestamp, statusCode, ip, uri, timeSpent))
 
         return res
     }
@@ -84,7 +69,7 @@ class LittleServerMain(
                 ne.remove("port")
                 return ResponseHelper.buildJsonTextResponse(JSONObject(ne).toString(4))
             } else if (!plainHttpServer && dir != null && dir.exists && dir.isDirectory) { // 返回目录结构信息
-                return ResponseHelper.buildJsonTextResponse(JSONArray(hashDir(dir)).toString())
+                return ResponseHelper.buildJsonTextResponse(JSONArray(generateDirectoryStructure(dir)).toString())
             } else { // 下载文件
                 val file = baseDir + uri.substring(1)
 
@@ -105,7 +90,7 @@ class LittleServerMain(
         }
     }
 
-    fun hashDir(directory: FileObj): ArrayList<AbstractSimpleFileObject>
+    fun generateDirectoryStructure(directory: FileObj): ArrayList<AbstractSimpleFileObject>
     {
         val ds = ArrayList<AbstractSimpleFileObject>()
         if(directory.exists && directory.isDirectory)
@@ -115,7 +100,7 @@ class LittleServerMain(
                 if(file.isFile)
                     ds += SimpleFileObject(file.name, length = file.length, hash = file.sha1, modified = file.modified / 1000)
                 if(file.isDirectory)
-                    ds += SimpleDirectoryObject(file.name, children = hashDir(file))
+                    ds += SimpleDirectoryObject(file.name, children = generateDirectoryStructure(file))
             }
         }
         return ds
@@ -146,7 +131,11 @@ class LittleServerMain(
                 val port = configYaml["port"]?.run { this as Int } ?: 8850
                 val plainHttpServer = configYaml["plain-http-server"]?.run { this as Boolean } ?: false
 
-                LittleServerMain(host, port, plainHttpServer, baseDir, configYaml)
+                val app = LittleServerMain(host, port, plainHttpServer, baseDir, configYaml)
+                println("文件更新助手服务端单文件版-${ManifestUtil.version} (${ManifestUtil.gitCommit.substring(0, 8)})")
+                println("Listening on: $host:$port")
+                app.start(SOCKET_READ_TIMEOUT, true)
+                println("启动成功! API地址: http://"+(if(host == "0.0.0.0") "127.0.0.1" else host)+":$port/index.json (从外网访问请使用对应的外网IP/域名)")
             } catch (e: YAMLException) {
                 println("配置文件读取出错(格式不正确)，位置和原因: ${e.cause?.message}")
                 exitProcess(1)
