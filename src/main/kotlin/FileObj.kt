@@ -1,4 +1,4 @@
-package util//@file:JvmName("util.FileObj")
+//@file:JvmName("FileObj")
 
 import java.io.File
 import java.io.FileInputStream

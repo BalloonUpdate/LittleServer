@@ -1,6 +1,4 @@
 import fi.iki.elonen.NanoHTTPD
-import org.json.JSONObject
-import util.FileObj
 import java.io.FileInputStream
 import java.io.IOException
 

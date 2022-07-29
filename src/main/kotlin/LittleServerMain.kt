@@ -3,8 +3,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.error.YAMLException
-import util.FileObj
-import util.ManifestUtil
 import java.io.File
 import java.net.BindException
 import java.text.SimpleDateFormat
@@ -12,13 +10,14 @@ import kotlin.system.exitProcess
 
 
 class LittleServerMain(
-    val host: String?,
-    val port: Int,
-    val plainHttpServer: Boolean,
+    host: String?,
+    port: Int,
+    val performanceMode: Boolean,
     val baseDir: FileObj,
     val configYaml: HashMap<String, Any>
 ) : NanoHTTPD(host, port) {
     private val fmt = SimpleDateFormat("YYYY-MM-dd HH:mm:ss")
+    private var structureInfoCache: String? = null
 
     /**
      * 服务主函数
@@ -39,10 +38,9 @@ class LittleServerMain(
     }
 
     /**
-     * 服务处理过程
+     * 服务具体处理过程
      */
-    @Suppress("NOTHING_TO_INLINE")
-    inline fun serve2(session: IHTTPSession): Response
+    fun serve2(session: IHTTPSession): Response
     {
         try {
             var uri = session.uri
@@ -60,16 +58,19 @@ class LittleServerMain(
             val dir = if(regex.find(uri) != null) FileObj(regex.find(uri)!!.value) else null
 
             // Rewrite
-            if(!plainHttpServer && uri == "/index.json") // 返回index信息
+            if(uri == "/index.json") // 返回index信息
             {
                 val ne = LinkedHashMap<String, Any>()
                 ne["update"] = "res"
                 ne.putAll(configYaml)
                 ne.remove("host")
                 ne.remove("port")
+                ne.remove("performance-mode")
                 return ResponseHelper.buildJsonTextResponse(JSONObject(ne).toString(4))
-            } else if (!plainHttpServer && dir != null && dir.exists && dir.isDirectory) { // 返回目录结构信息
-                return ResponseHelper.buildJsonTextResponse(JSONArray(generateDirectoryStructure(dir)).toString())
+            } else if (dir != null && dir.exists && dir.isDirectory) { // 返回目录结构信息
+                if (!performanceMode || structureInfoCache == null)
+                    structureInfoCache = JSONArray(generateDirectoryStructure(dir)).toString()
+                return ResponseHelper.buildJsonTextResponse(structureInfoCache!!)
             } else { // 下载文件
                 val file = baseDir + uri.substring(1)
 
@@ -129,13 +130,17 @@ class LittleServerMain(
 
                 val host = configYaml["host"]?.run { this as String } ?: "0.0.0.0"
                 val port = configYaml["port"]?.run { this as Int } ?: 8850
-                val plainHttpServer = configYaml["plain-http-server"]?.run { this as Boolean } ?: false
+                val performanceMode = configYaml["performance-mode"]?.run { this as Boolean } ?: false
 
-                val app = LittleServerMain(host, port, plainHttpServer, baseDir, configYaml)
-                println("文件更新助手服务端单文件版-${ManifestUtil.version} (${ManifestUtil.gitCommit.substring(0, 8)})")
+                val app = LittleServerMain(host, port, performanceMode, baseDir, configYaml)
                 println("Listening on: $host:$port")
-                app.start(SOCKET_READ_TIMEOUT, true)
+                app.start(SOCKET_READ_TIMEOUT, false)
                 println("启动成功! API地址: http://"+(if(host == "0.0.0.0") "127.0.0.1" else host)+":$port/index.json (从外网访问请使用对应的外网IP/域名)")
+                println("高性能模式已经开启")
+
+                println()
+                println("使用提示1：更新规则和res目录下的文件均需要在程序关闭时修改，在运行时修改是不会生效的！")
+                println("使用提示2：显示的所有报错信息都不用管，直接忽略就好！")
             } catch (e: YAMLException) {
                 println("配置文件读取出错(格式不正确)，位置和原因: ${e.cause?.message}")
                 exitProcess(1)
