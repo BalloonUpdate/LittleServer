@@ -4,8 +4,13 @@ import org.json.JSONObject
 import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.error.YAMLException
 import java.io.File
+import java.io.FileInputStream
+import java.io.IOException
 import java.net.BindException
+import java.security.KeyStore
+import java.security.UnrecoverableKeyException
 import java.text.SimpleDateFormat
+import javax.net.ssl.KeyManagerFactory
 import kotlin.system.exitProcess
 
 
@@ -63,9 +68,12 @@ class LittleServerMain(
                 val ne = LinkedHashMap<String, Any>()
                 ne["update"] = "res"
                 ne.putAll(configYaml)
+                ne.remove("address")
                 ne.remove("host")
                 ne.remove("port")
                 ne.remove("performance-mode")
+                ne.remove("jks-certificate-file")
+                ne.remove("jks-certificate-pass")
                 return ResponseHelper.buildJsonTextResponse(JSONObject(ne).toString(4))
             } else if (dir != null && dir.exists && dir.isDirectory) { // 返回目录结构信息
                 if (!performanceMode || structureInfoCache == null)
@@ -131,10 +139,38 @@ class LittleServerMain(
                 val host = configYaml["host"]?.run { this as String } ?: "0.0.0.0"
                 val port = configYaml["port"]?.run { this as Int } ?: 8850
                 val performanceMode = configYaml["performance-mode"]?.run { this as Boolean } ?: false
+                val certificateFile = configYaml["jks-certificate-file"]?.run { this as String } ?: ""
+                val certificatePass = configYaml["jks-certificate-pass"]?.run { this as String } ?: ""
 
-                val app = LittleServerMain(host, port, performanceMode, baseDir, configYaml)
+                val server = LittleServerMain(host, port, performanceMode, baseDir, configYaml)
+
+                if (certificateFile.isNotEmpty() && certificatePass.isNotEmpty())
+                {
+                    if (FileObj(certificateFile).exists)
+                    {
+                        val keystore = KeyStore.getInstance(KeyStore.getDefaultType())
+                        val keystoreStream = FileInputStream(certificateFile)
+
+                        try {
+                            keystore.load(keystoreStream, certificatePass.toCharArray())
+                        } catch (e: IOException) {
+                            println("SSL证书密码不正确")
+                            exitProcess(1)
+                        }
+
+                        val keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())
+                        keyManagerFactory.init(keystore, certificatePass.toCharArray())
+                        val factory = makeSSLSocketFactory(keystore, keyManagerFactory)
+                        server.makeSecure(factory, null)
+                        println("SSL证书已加载")
+                    } else {
+                        println("SSL证书文件找不到: $certificateFile")
+                        exitProcess(1)
+                    }
+                }
+
+                server.start(SOCKET_READ_TIMEOUT, false)
                 println("Listening on: $host:$port")
-                app.start(SOCKET_READ_TIMEOUT, false)
                 println("启动成功! API地址: http://"+(if(host == "0.0.0.0") "127.0.0.1" else host)+":$port/index.json (从外网访问请使用对应的外网IP/域名)")
                 println("高性能模式已经开启")
 
