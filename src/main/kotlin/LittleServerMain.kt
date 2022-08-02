@@ -172,7 +172,9 @@ class LittleServerMain(
                 server.start(SOCKET_READ_TIMEOUT, false)
                 println("Listening on: $host:$port")
                 println("启动成功! API地址: http://"+(if(host == "0.0.0.0") "127.0.0.1" else host)+":$port/index.json (从外网访问请使用对应的外网IP/域名)")
-                println("高性能模式已经开启")
+
+                if (performanceMode)
+                    println("高性能模式已经开启")
 
                 println()
                 println("使用提示1：更新规则和res目录下的文件均需要在程序关闭时修改，在运行时修改是不会生效的！")
