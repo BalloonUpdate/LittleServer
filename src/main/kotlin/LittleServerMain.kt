@@ -75,10 +75,10 @@ class LittleServerMain(
                 ne.remove("jks-certificate-file")
                 ne.remove("jks-certificate-pass")
                 return ResponseHelper.buildJsonTextResponse(JSONObject(ne).toString(4))
-            } else if (dir != null && dir.exists && dir.isDirectory) { // 返回目录结构信息
-                if (!performanceMode || structureInfoCache == null)
-                    structureInfoCache = JSONArray(generateDirectoryStructure(dir)).toString()
+            } else if (performanceMode && uri == "/res.json") {
                 return ResponseHelper.buildJsonTextResponse(structureInfoCache!!)
+            } else if (dir != null && dir.exists && dir.isDirectory) { // 返回目录结构信息
+                return ResponseHelper.buildJsonTextResponse(JSONArray(generateDirectoryStructure(dir)).toString())
             } else { // 下载文件
                 val file = baseDir + uri.substring(1)
 
@@ -174,7 +174,11 @@ class LittleServerMain(
                 println("启动成功! API地址: http://"+(if(host == "0.0.0.0") "127.0.0.1" else host)+":$port/index.json (从外网访问请使用对应的外网IP/域名)")
 
                 if (performanceMode)
-                    println("高性能模式已经开启")
+                {
+                    println("高性能模式已经开启，正在生成res目录的缓存...")
+                    server.structureInfoCache = JSONArray(server.generateDirectoryStructure(baseDir + "res")).toString()
+                    println("缓存生成完毕，如果需要刷新缓存需要重启程序")
+                }
 
                 println()
                 println("使用提示1：更新规则和res目录下的文件均需要在程序关闭时修改，在运行时修改是不会生效的！")
