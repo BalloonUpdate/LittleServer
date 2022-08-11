@@ -8,9 +8,12 @@ import java.io.FileInputStream
 import java.io.IOException
 import java.net.BindException
 import java.security.KeyStore
-import java.security.UnrecoverableKeyException
 import java.text.SimpleDateFormat
+import java.util.*
 import javax.net.ssl.KeyManagerFactory
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
+import kotlin.collections.LinkedHashMap
 import kotlin.system.exitProcess
 
 
@@ -23,6 +26,7 @@ class LittleServerMain(
 ) : NanoHTTPD(host, port) {
     private val fmt = SimpleDateFormat("YYYY-MM-dd HH:mm:ss")
     private var structureInfoCache: String? = null
+    val cacheGeneratingLock = Any()
 
     /**
      * 服务主函数
@@ -31,7 +35,8 @@ class LittleServerMain(
     {
         val timestamp = fmt.format(System.currentTimeMillis())
         val timePoint = System.currentTimeMillis()
-        val res = serve2(session)
+        val res: NanoHTTPD.Response
+        synchronized(cacheGeneratingLock) { res = serve2(session) }
         val timeSpent = System.currentTimeMillis() - timePoint
         val statusCode = res.status.requestStatus
         val uri = session.uri
@@ -133,6 +138,7 @@ class LittleServerMain(
                 exitProcess(1)
             }
 
+            val server: LittleServerMain
             try {
                 val configYaml = Yaml().load(configFile.content) as HashMap<String, Any>
 
@@ -142,7 +148,7 @@ class LittleServerMain(
                 val certificateFile = configYaml["jks-certificate-file"]?.run { this as String } ?: ""
                 val certificatePass = configYaml["jks-certificate-pass"]?.run { this as String } ?: ""
 
-                val server = LittleServerMain(host, port, performanceMode, baseDir, configYaml)
+                server = LittleServerMain(host, port, performanceMode, baseDir, configYaml)
 
                 if (certificateFile.isNotEmpty() && certificatePass.isNotEmpty())
                 {
@@ -177,18 +183,37 @@ class LittleServerMain(
                 {
                     println("高性能模式已经开启，正在生成res目录的缓存...")
                     server.structureInfoCache = JSONArray(server.generateDirectoryStructure(baseDir + "res")).toString()
-                    println("缓存生成完毕，如果需要刷新缓存需要重启程序")
+                    println("缓存生成完毕，如果需要刷新缓存需要重启程序或者输入reload")
                 }
 
                 println()
                 println("使用提示1：更新规则和res目录下的文件均需要在程序关闭时修改，在运行时修改是不会生效的！")
                 println("使用提示2：显示的所有报错信息都不用管，直接忽略就好！")
+                println("使用提示3：输入指令stop或者s可以退出程序，输入reload或者r可以重新生成res目录的缓存")
             } catch (e: YAMLException) {
                 println("配置文件读取出错(格式不正确)，位置和原因: ${e.cause?.message}")
                 exitProcess(1)
             } catch (e: BindException) {
                 println("端口监听失败，可能是端口冲突，原因: ${e.message}")
                 exitProcess(1)
+            }
+
+            // 读取控制台输入
+            val scanner = Scanner(System.`in`)
+            while (true)
+            {
+                val line = scanner.nextLine()
+                if (line == "stop" || line == "s")
+                {
+                    exitProcess(1)
+                } else if (line == "reload" || line == "r") {
+                    synchronized(server.cacheGeneratingLock) {
+                        println("正在重新生成res目录的缓存...")
+                        server.structureInfoCache = JSONArray(server.generateDirectoryStructure(baseDir + "res")).toString()
+                        println("缓存生成完毕")
+                    }
+                }
+
             }
         }
     }
