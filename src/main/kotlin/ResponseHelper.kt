@@ -4,7 +4,7 @@ import java.io.IOException
 
 object ResponseHelper
 {
-    fun buildFileResponse(file: FileObj): NanoHTTPD.Response
+    fun buildFileResponse(file: File2): NanoHTTPD.Response
     {
         return try {
             NanoHTTPD.newFixedLengthResponse(

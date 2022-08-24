@@ -13,11 +13,11 @@ plugins {
     application
 }
 
-val mainClassPath = "LittleServerMain"
-val author = "Asforest"
-val website = "https://github.com/updater-for-minecraft/LittleServer"
+val mainClassPath = "LittleServer"
+val author = "BalloonUpdate"
+val website = "https://github.com/BalloonUpdate/LittleServer"
 
-group = "com.github.updater-for-minecraft"
+group = "com.github.balloon-update"
 version = gitTagName?.run { getVersionName(this) } ?: debugVersion
 
 repositories {
@@ -61,7 +61,7 @@ tasks.jar {
 
     // 复制依赖库
     from(configurations.runtimeClasspath.get().map {
-        println("- "+it.name)
+//        println("- "+it.name)
         if (it.isDirectory) it else zipTree(it)//.matching { exclude("*") }
     })
 

@@ -8,7 +8,7 @@ import java.nio.file.Paths
 import java.security.MessageDigest
 import kotlin.io.path.pathString
 
-class FileObj : Iterable<FileObj>
+class File2 : Iterable<File2>
 {
     private var file: File
 
@@ -19,17 +19,22 @@ class FileObj : Iterable<FileObj>
         this.file = file.absoluteFile
     }
 
+    @get:JvmName("getRawFile")
     val _file: File get() = file
 
+    @get:JvmName("getName")
     val name: String get() = file.name
 
+    @get:JvmName("isDirectory")
     val isDirectory: Boolean get() = file.isDirectory
 
+    @get:JvmName("isFile")
     val isFile: Boolean get() = file.isFile
 
+    @get:JvmName("exists")
     val exists: Boolean get() = file.exists()
 
-    val parent: FileObj get() = FileObj(file.parent)
+    val parent: File2 get() = File2(file.parent)
 
     fun mkdirs() = file.mkdirs()
 
@@ -42,6 +47,7 @@ class FileObj : Iterable<FileObj>
         content = fileContent ?: ""
     }
 
+    @get:JvmName("getContent")
     var content: String
         get() {
             if(!exists)
@@ -85,8 +91,9 @@ class FileObj : Iterable<FileObj>
             return file.lastModified()
         }
 
-    val files: List<FileObj> get() = file.listFiles().map { FileObj(it) }
+    val files: List<File2> get() = file.listFiles().map { File2(it) }
 
+    @get:JvmName("isDirty")
     val isDirty: Boolean
         get() {
             if(!exists)
@@ -115,12 +122,12 @@ class FileObj : Iterable<FileObj>
         file.delete()
     }
 
-    fun copy(target: FileObj)
+    fun copy(target: File2)
     {
         file.copyRecursively(target.file, overwrite = true)
     }
 
-    fun move(target: FileObj)
+    fun move(target: File2)
     {
         copy(target)
         target.delete()
@@ -130,34 +137,34 @@ class FileObj : Iterable<FileObj>
 
     val platformPath: String get() = file.absolutePath
 
-    fun relativize(target: FileObj, platformize: Boolean = false): String {
+    fun relativize(target: File2, platformize: Boolean = false): String {
         return Paths.get(path).relativize(Paths.get(target.path)).pathString.run {
             if(!platformize) replace("\\", "/") else this
         }
     }
 
-    fun relativizedBy(base: FileObj, platformize: Boolean = false): String {
+    fun relativizedBy(base: File2, platformize: Boolean = false): String {
         return Paths.get(base.path).relativize(Paths.get(path)).pathString.run {
             if(!platformize) replace("\\", "/") else this
         }
     }
 
-    override fun iterator(): Iterator<FileObj>
+    override fun iterator(): Iterator<File2>
     {
         return files.iterator()
     }
 
-    operator fun plus(value: String): FileObj
+    operator fun plus(value: String): File2
     {
-        return FileObj(path + File.separator + value)
+        return File2(path + File.separator + value)
     }
 
-    operator fun invoke(value: String): FileObj
+    operator fun invoke(value: String): File2
     {
         return this + value
     }
 
-    operator fun get(value: String): FileObj
+    operator fun get(value: String): File2
     {
         return this + value
     }
