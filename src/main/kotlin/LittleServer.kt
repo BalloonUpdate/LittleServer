@@ -88,9 +88,8 @@ class LittleServer
 
                 if (config.performanceMode)
                 {
-                    println("高性能模式已经开启，正在生成res目录的缓存...")
+                    println("高性能模式已经开启，正在生成资源目录缓存...")
                     server.regenDirStructureInfoCache()
-                    println("缓存生成完毕")
                 }
 
                 server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
@@ -109,7 +108,7 @@ class LittleServer
                 println("使用提示2：显示的所有报错信息都不用管，直接忽略就好！")
                 println("使用提示3：可用指令：")
                 println("              stop或者s：退出程序")
-                println("              reload或者r：重新生成res目录的缓存（仅开启高性能时有效）")
+                println("              reload或者r：重新生成资源目录缓存（仅开启高性能时有效）")
             } catch (e: BindException) {
                 println("端口监听失败，可能是端口冲突，原因: ${e.message}")
                 exitProcess(1)
@@ -124,9 +123,9 @@ class LittleServer
                 {
                     exitProcess(1)
                 } else if (line == "reload" || line == "r") {
-                    println("正在重新生成res目录的缓存...")
+                    print("正在重新生成资源目录缓存...")
                     server.regenDirStructureInfoCache()
-                    println("缓存生成完毕")
+                    println("  完毕")
                 }
 
             }

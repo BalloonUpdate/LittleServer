@@ -53,13 +53,7 @@ class Server(val config: AppConfig) : NanoHTTPD(config.host, config.port)
             {
                 val ne = LinkedHashMap<String, Any>()
                 ne["update"] = "res"
-                ne.putAll(config.configYaml)
-                ne.remove("address")
-                ne.remove("host")
-                ne.remove("port")
-                ne.remove("performance-mode")
-                ne.remove("jks-certificate-file")
-                ne.remove("jks-certificate-pass")
+                ne.putAll(config.configYaml.filter { it.key == "common_mode" || it.key == "once_mode" })
                 return ResponseHelper.buildJsonTextResponse(JSONObject(ne).toString(4))
             } else if (path == "/res.json") {
                 val response: Response
@@ -98,7 +92,12 @@ class Server(val config: AppConfig) : NanoHTTPD(config.host, config.port)
     fun regenDirStructureInfoCache()
     {
         synchronized(cacheGeneratingLock) {
-            structureInfoCache = JSONArray(genDirStructureInfo(config.baseDir + "res")).toString()
+            val ja = JSONArray()
+
+            for (s in genDirStructureInfo(config.baseDir + "res"))
+                ja.put(s.toJson())
+
+            structureInfoCache = ja.toString()
         }
     }
 
@@ -143,7 +142,7 @@ class Server(val config: AppConfig) : NanoHTTPD(config.host, config.port)
             for (f in diff.newFiles)
             {
 //                println("newFiles: $f")
-                println("检测到文件变动，结构文件缓存已更新: $f")
+                println("检测到文件变动，更新资源目录缓存: $f")
                 val parent = getDirname(f)
                 val filename = getBasename(f)
 

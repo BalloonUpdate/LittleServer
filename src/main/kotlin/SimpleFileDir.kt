@@ -81,11 +81,11 @@ sealed class SimpleFileDir(open var name: String)
             val obj = JSONObject()
             obj.put("name", name)
 
-            val cs = mutableListOf<JSONObject>()
-            for (child in files)
-                cs += child.toJson()
+            val files = JSONArray()
+            for (child in this.files)
+                files.put(child.toJson())
 
-            obj.put("files", cs)
+            obj.put("children", files)
 
             return obj
         }
@@ -99,8 +99,8 @@ sealed class SimpleFileDir(open var name: String)
             fun gen(f: JSONObject): SimpleFileDir
             {
                 val name = f["name"] as String
-                return if(f.has("files")) {
-                    val files = f["files"] as JSONArray
+                return if(f.has("children")) {
+                    val files = f["children"] as JSONArray
                     SimpleDirectory(name, files.map { gen(it as JSONObject) })
                 } else {
                     val length = parseAsLong(f["length"])
