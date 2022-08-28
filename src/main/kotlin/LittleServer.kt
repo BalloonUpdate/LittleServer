@@ -20,7 +20,7 @@ class LittleServer
             return AppConfig(
                 baseDir = baseDir,
                 configYaml = configYaml,
-                host = configYaml["host"]?.run { this as String } ?: "0.0.0.0",
+                host = configYaml["address"]?.run { this as String } ?: "0.0.0.0",
                 port = configYaml["port"]?.run { this as Int } ?: 8850,
                 performanceMode = configYaml["performance-mode"]?.run { this as Boolean } ?: false,
                 certificateFile = configYaml["jks-certificate-file"]?.run { this as String } ?: "",
