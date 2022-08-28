@@ -3,7 +3,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.text.SimpleDateFormat
-import kotlin.collections.ArrayList
 import kotlin.collections.LinkedHashMap
 
 
@@ -11,7 +10,6 @@ class Server(val config: AppConfig) : NanoHTTPD(config.host, config.port)
 {
     private val fmt = SimpleDateFormat("YYYY-MM-dd HH:mm:ss")
     private var structureInfoCache: String? = null
-    private val cacheGeneratingLock = Any()
 
     /**
      * 服务主函数
@@ -19,14 +17,14 @@ class Server(val config: AppConfig) : NanoHTTPD(config.host, config.port)
     override fun serve(session: IHTTPSession): Response
     {
         val timestamp = fmt.format(System.currentTimeMillis())
-        val timePoint = System.currentTimeMillis()
-        val res: Response = serve2(session)
-        val timeSpent = System.currentTimeMillis() - timePoint
+        val start = System.currentTimeMillis()
+        val res: Response = handleRequest(session)
+        val elapsed = System.currentTimeMillis() - start
         val statusCode = res.status.requestStatus
         val uri = session.uri
         val ip: String = session.javaClass.getDeclaredField("remoteIp").also { it.isAccessible = true }.get(session) as String
 
-        println(String.format("[ %s ] %3s | %-15s | %s (%dms)", timestamp, statusCode, ip, uri, timeSpent))
+        println(String.format("[ %s ] %3s | %-15s | %s (%dms)", timestamp, statusCode, ip, uri, elapsed))
 
         return res
     }
@@ -34,7 +32,7 @@ class Server(val config: AppConfig) : NanoHTTPD(config.host, config.port)
     /**
      * 服务具体处理过程
      */
-    fun serve2(session: IHTTPSession): Response
+    fun handleRequest(session: IHTTPSession): Response
     {
         try {
             // Remove URL arguments
@@ -45,7 +43,7 @@ class Server(val config: AppConfig) : NanoHTTPD(config.host, config.port)
             if ("../" in path)
                 return ResponseHelper.buildForbiddenResponse("Won't serve ../ for security reasons.")
 
-            // 返回目录结构信息
+            // if request on a directory
             val dir = Regex("(?<=^/)[^/]+(?=\\.json\$)").find(path)?.run { File2(this.value) }
 
             // Rewrite
@@ -56,21 +54,15 @@ class Server(val config: AppConfig) : NanoHTTPD(config.host, config.port)
                 ne.putAll(config.configYaml.filter { it.key == "common_mode" || it.key == "once_mode" })
                 return ResponseHelper.buildJsonTextResponse(JSONObject(ne).toString(4))
             } else if (path == "/res.json") {
-                val response: Response
-
-                if (!config.performanceMode)
-                    regenDirStructureInfoCache()
-
-                synchronized(cacheGeneratingLock) {
-                    response = ResponseHelper.buildJsonTextResponse(structureInfoCache!!)
-                }
-
-                return response
-            } else if (dir != null) { // 返回目录结构信息
+                regenResCache()
+                return ResponseHelper.buildJsonTextResponse(structureInfoCache!!)
+            } else if (dir != null) { // 禁止访问任何目录
                 return ResponseHelper.buildForbiddenResponse("Directory is unable to show")
-            } else if (!path.startsWith("/res/")) { // 下载文件
+            } else if (!path.startsWith("/res/")) { // 不能访问res目录以外的文件
                 return ResponseHelper.buildForbiddenResponse("File is unable to show")
             } else {
+                // 下载res里的文件
+
                 val file = config.baseDir + path.substring(1)
 
                 if(!file.exists)
@@ -79,6 +71,7 @@ class Server(val config: AppConfig) : NanoHTTPD(config.host, config.port)
                 if(file.isFile)
                     return ResponseHelper.buildFileResponse(file)
 
+                // 100%不会执行到这里
                 return ResponseHelper.buildPlainTextResponse(path)
             }
         } catch (e: Exception) {
@@ -87,86 +80,70 @@ class Server(val config: AppConfig) : NanoHTTPD(config.host, config.port)
     }
 
     /**
-     * 生成res目录文件结构信息并缓存
+     * 生成res目录缓存
      */
-    fun regenDirStructureInfoCache()
+    private fun regenResCache()
     {
-        synchronized(cacheGeneratingLock) {
-            val ja = JSONArray()
-
-            for (s in genDirStructureInfo(config.baseDir + "res"))
-                ja.put(s.toJson())
-
-            structureInfoCache = ja.toString()
-        }
+        structureInfoCache = JSONArray().also { j -> genCache(config.baseDir + "res").forEach { j.put(it.toJsonObject()) } }.toString()
     }
 
     /**
      * 生成文件结构信息
      */
-    private fun genDirStructureInfo(directory: File2): List<SimpleFileDir>
+    private fun genCache(directory: File2): List<VirtualFile>
     {
         fun getDirname(path: String): String? = path.lastIndexOf("/").run { if (this == -1) null else path.substring(0, this) }
         fun getBasename(path: String): String = path.lastIndexOf("/").run { if (this == -1) path else path.substring(this + 1) }
 
         val baseDir = config.baseDir + "res"
-        val hashCache = HashCache(baseDir)
-        val diCacheFile = File2("cache.json")
-        val diCache = diCacheFile.run { if (config.performanceMode && exists) SimpleFileDir.fromJsonArray(JSONArray(content), "no_name") as SimpleFileDir.SimpleDirectory else null }
-        val diff = diCache?.run { FileDiff(this, directory, baseDir, hashCache).compare() }
+        val hashCacher = HashCacher(baseDir)
+        val cacheFile = File2("cache.json")
+        val cache = cacheFile.run { if (exists) VirtualFile.fromJsonArray(JSONArray(content), "no_name") else null }
+        val diff = cache?.run { FileDiff(this, directory, baseDir, hashCacher).compare() }
 
-        if (diff != null)
+        // 更新res.json缓存
+        if (diff?.hasDifferences() == true)
         {
             for (f in diff.oldFiles)
             {
-//                println("oldFiles: $f")
-                diCache.removeFile(f)
+                cache.removeFile(f)
             }
 
             for (f in diff.oldFolders)
             {
-//                println("oldFolders: $f")
-                diCache.removeFile(f)
+                cache.removeFile(f)
             }
 
             for (f in diff.newFolders)
             {
-//                println("newFolders: $f")
                 val parent = getDirname(f)
                 val filename = getBasename(f)
 
-                val dir = if (parent != null) diCache.getFile(parent) as SimpleFileDir.SimpleDirectory else diCache
-                dir.files += SimpleFileDir.SimpleDirectory(filename, listOf())
+                val dir = if (parent != null) cache.getFile(parent)!! else cache
+                dir.files += VirtualFile(filename, listOf())
             }
 
             for (f in diff.newFiles)
             {
-//                println("newFiles: $f")
-                println("检测到文件变动，更新资源目录缓存: $f")
+                println("updated: $f")
                 val parent = getDirname(f)
                 val filename = getBasename(f)
 
-                val dir = if (parent != null) diCache.getFile(parent) as SimpleFileDir.SimpleDirectory else diCache
+                val dir = if (parent != null) cache.getFile(parent)!! else cache
                 val file = baseDir + f
                 val length = file.length
                 val modified = file.modified
-                val hash = hashCache.getHash(f)
+                val hash = hashCacher.getHash(f)
 
-                dir.files += SimpleFileDir.SimpleFile(filename, length, hash, modified)
+                dir.files += VirtualFile(filename, length, hash, modified)
             }
         }
 
-        val result = diCache?.files ?: (SimpleFileDir.fromRealFile(directory) as SimpleFileDir.SimpleDirectory).files
+        val result = cache?.files ?: VirtualFile.fromRealFile(directory).files
 
-        if (config.performanceMode && (diff == null || diff.hasDifferences()))
-        {
-            val jsonArray = JSONArray()
-
-            for (j in result)
-                jsonArray.put(j.toJson())
-
-            diCacheFile.content = jsonArray.toString(4)
-        }
+        // 落盘
+        if (diff == null || diff.hasDifferences())
+            cacheFile.content = JSONArray().also { result.forEach { j -> it.put(j.toJsonObject()) } }.toString(4)
 
         return result
     }

@@ -22,7 +22,6 @@ class LittleServer
                 configYaml = configYaml,
                 host = configYaml["address"]?.run { this as String } ?: "0.0.0.0",
                 port = configYaml["port"]?.run { this as Int } ?: 8850,
-                performanceMode = configYaml["performance-mode"]?.run { this as Boolean } ?: false,
                 certificateFile = configYaml["jks-certificate-file"]?.run { this as String } ?: "",
                 certificatePass = configYaml["jks-certificate-pass"]?.run { this as String } ?: "",
             )
@@ -86,12 +85,6 @@ class LittleServer
                     println("SSL证书已加载")
                 }
 
-                if (config.performanceMode)
-                {
-                    println("高性能模式已经开启，正在生成资源目录缓存...")
-                    server.regenDirStructureInfoCache()
-                }
-
                 server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
 
                 val host = config.host
@@ -101,14 +94,8 @@ class LittleServer
                 println("API地址: http://$host:$port/index.json")
 
                 println()
-                if (config.performanceMode)
-                    println("使用提示1：修改更新规则需要退出程序之后修改，修改res目录下的文件之后请重启或者使用reload指令来重新加载")
-                else
-                    println("使用提示1：修改更新规则需要退出程序之后修改，修改res目录下的文件会实时生效，不用退出程序")
-                println("使用提示2：显示的所有报错信息都不用管，直接忽略就好！")
-                println("使用提示3：可用指令：")
-                println("              stop或者s：退出程序")
-                println("              reload或者r：重新生成资源目录缓存（仅开启高性能时有效）")
+                println("使用提示1：显示的所有报错信息都不用管，直接忽略就好！")
+                println("使用提示2：可以使用之类stop或者s来退出程序")
             } catch (e: BindException) {
                 println("端口监听失败，可能是端口冲突，原因: ${e.message}")
                 exitProcess(1)
@@ -120,14 +107,7 @@ class LittleServer
             {
                 val line = scanner.nextLine()
                 if (line == "stop" || line == "s")
-                {
                     exitProcess(1)
-                } else if (line == "reload" || line == "r") {
-                    print("正在重新生成资源目录缓存...")
-                    server.regenDirStructureInfoCache()
-                    println("  完毕")
-                }
-
             }
         }
     }

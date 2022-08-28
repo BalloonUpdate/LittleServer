@@ -1,5 +1,12 @@
-
-class FileDiff(val current: SimpleFileDir.SimpleDirectory, val contrast: File2, val base: File2, val hashCache: HashCache)
+/**
+ * 文件差异对比类
+ *
+ * @param current 要进行对比的目录
+ * @param contrast 对比时使用的对照目录
+ * @param base 基准目录，用来计算相对路径
+ * @param hashCacher hash缓存对象
+ */
+class FileDiff(val current: VirtualFile, val contrast: File2, val base: File2, val hashCacher: HashCacher)
 {
     private val differences: Difference = Difference()
 
@@ -8,29 +15,29 @@ class FileDiff(val current: SimpleFileDir.SimpleDirectory, val contrast: File2, 
      * @param contrast 要拿来进行对比的目录
      * @param base 基准目录，用于计算相对路径
      */
-    private fun findNews(dir: SimpleFileDir.SimpleDirectory, contrast: File2, base: File2) {
+    private fun findNews(dir: VirtualFile, contrast: File2, base: File2) {
         for (c in contrast.files)
         {
             val corresponding = dir.getFile(c.name) // 此文件可能不存在
 
             if(corresponding == null) // 如果文件不存在的话，就不用校验了，可以直接进行下载
             {
-                markAsNew(SimpleFileDir.fromRealFile(c), c)
+                markAsNew(VirtualFile.fromRealFile(c), c)
                 continue
             }
 
             // 文件存在的话要进行进一步判断
             if(c.isDirectory) // 远程文件是一个目录
             {
-                if(corresponding is SimpleFileDir.SimpleFile) // 本地文件和远程文件的文件类型对不上
+                if(corresponding.isFile) // 本地文件和远程文件的文件类型对不上
                 {
                     markAsOld(corresponding, contrast.relativizedBy(base))
                     markAsNew(corresponding, c)
                 } else { // 本地文件和远程文件都是目录，则进行进一步判断
-                    findNews(corresponding as SimpleFileDir.SimpleDirectory, c, base)
+                    findNews(corresponding, c, base)
                 }
             } else if(c.isFile) { // 远程文件是一个文件
-                if(corresponding is SimpleFileDir.SimpleFile) // 本地文件和远程文件都是文件，则对比校验
+                if(corresponding.isFile) // 本地文件和远程文件都是文件，则对比校验
                 {
                     if (!compareSingleFile(corresponding, c))
                     {
@@ -50,7 +57,7 @@ class FileDiff(val current: SimpleFileDir.SimpleDirectory, val contrast: File2, 
      * @param contrast 要拿来进行对比的目录
      * @param base 基准目录，用于计算相对路径
      */
-    private fun findOlds(dir: SimpleFileDir.SimpleDirectory, contrast: File2, base: File2)
+    private fun findOlds(dir: VirtualFile, contrast: File2, base: File2)
     {
         for (f in dir.files)
         {
@@ -58,7 +65,7 @@ class FileDiff(val current: SimpleFileDir.SimpleDirectory, val contrast: File2, 
 
             if(corresponding.exists) // 如果远程文件存在
             {
-                if(f is SimpleFileDir.SimpleDirectory && corresponding.isDirectory)
+                if(f.isDirectory && corresponding.isDirectory)
                     findOlds(f, corresponding, base)
             } else { // 远程文件不存在，就直接删掉好了
                 markAsOld(f, contrast.relativizedBy(base))
@@ -69,12 +76,12 @@ class FileDiff(val current: SimpleFileDir.SimpleDirectory, val contrast: File2, 
     /**
      * 对比两个路径相同的文件是否一致
      */
-    private fun compareSingleFile(a: SimpleFileDir.SimpleFile, b: File2): Boolean
+    private fun compareSingleFile(a: VirtualFile, b: File2): Boolean
     {
         if(a.modified == b.modified)
             return true
 
-        return if(hashCache.getHash(b.relativizedBy(base)) != a.hash) {
+        return if(hashCacher.getHash(b.relativizedBy(base)) != a.hash) {
             false
         } else {
             b._file.setLastModified(a.modified)
@@ -85,16 +92,16 @@ class FileDiff(val current: SimpleFileDir.SimpleDirectory, val contrast: File2, 
     /**
      * 将一个文件文件或者目录标记为旧文件
      */
-    private fun markAsOld(existing: SimpleFileDir, directory: String)
+    private fun markAsOld(existing: VirtualFile, directory: String)
     {
         var path = directory + (if (directory.isNotEmpty()) "/" else "") + existing.name
         path = if (path.startsWith("./")) path.substring(2) else path
 
-        if(existing is SimpleFileDir.SimpleDirectory)
+        if(existing.isDirectory)
         {
             for (f in existing.files)
             {
-                if(f is SimpleFileDir.SimpleDirectory)
+                if(f.isDirectory)
                     markAsOld(f, path)
                 else {
                     var path = path + "/" + f.name
@@ -113,14 +120,14 @@ class FileDiff(val current: SimpleFileDir.SimpleDirectory, val contrast: File2, 
     /**
      * 将一个文件文件或者目录标记为新文件
      */
-    private fun markAsNew(missing: SimpleFileDir, contrast: File2)
+    private fun markAsNew(missing: VirtualFile, contrast: File2)
     {
-        if(missing is SimpleFileDir.SimpleDirectory)
+        if(missing.isDirectory)
         {
             differences.newFolders += contrast.relativizedBy(base)
             for (n in missing.files)
                 markAsNew(n, contrast + n.name)
-        } else if (missing is SimpleFileDir.SimpleFile){
+        } else if (missing.isFile){
             differences.newFiles += contrast.relativizedBy(base)
         }
     }
