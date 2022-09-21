@@ -12,9 +12,7 @@ object ResponseHelper
                 "application/octet-stream",
                 FileInputStream(file._file),
                 file.length.toInt().toLong()
-            ).also {
-                it.addHeader("Content-Length", file.length.toString())
-            }
+            )
         } catch (e: IOException) {
             buildForbiddenResponse("Reading file failed.")
         }
