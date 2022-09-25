@@ -91,7 +91,7 @@ class LittleServer
                 val port = config.port
 
                 println("Listening on: $host:$port")
-                println("API地址: http://$host:$port/index.json")
+                println("API地址: http://${ if (host == "0.0.0.0") "127.0.0.1" else host }:$port/index.json")
 
                 println()
                 println("使用提示1：显示的所有报错信息都不用管，直接忽略就好！")
