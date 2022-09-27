@@ -9,7 +9,7 @@ object ResponseHelper
         return try {
             NanoHTTPD.newFixedLengthResponse(
                 NanoHTTPD.Response.Status.OK,
-                "application/octet-stream",
+                NanoHTTPD.getMimeTypeForFile("file:///" + file.path),
                 FileInputStream(file._file),
                 file.length.toInt().toLong()
             )
