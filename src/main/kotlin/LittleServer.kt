@@ -96,6 +96,7 @@ class LittleServer
                 println()
                 println("使用提示1：显示的所有报错信息都不用管，直接忽略就好！")
                 println("使用提示2：可以使用之类stop或者s来退出程序")
+                println("恭喜，程序启动成功！")
             } catch (e: BindException) {
                 println("端口监听失败，可能是端口冲突，原因: ${e.message}")
                 exitProcess(1)
