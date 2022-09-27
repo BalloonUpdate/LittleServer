@@ -129,12 +129,12 @@ class VirtualFile
         }
 
         @JvmStatic
-        fun fromRealFile(file: File2): VirtualFile
+        fun fromRealFile(file: File2, useSha1: Boolean): VirtualFile
         {
             return if (file.isDirectory) {
-                VirtualFile(file.name, files = file.files.map { fromRealFile(it) })
+                VirtualFile(file.name, files = file.files.map { fromRealFile(it, useSha1) })
             } else {
-                VirtualFile(file.name, length = file.length, hash = file.sha1, modified = file.modified)
+                VirtualFile(file.name, length = file.length, hash = if (useSha1) file.sha1 else file.crc32, modified = file.modified)
             }
         }
     }

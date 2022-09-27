@@ -1,4 +1,4 @@
-//@file:JvmName("FileObj")
+@file:JvmName("File2")
 
 import java.io.File
 import java.io.FileInputStream
@@ -6,11 +6,12 @@ import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.nio.file.Paths
 import java.security.MessageDigest
+import java.util.zip.CRC32
 import kotlin.io.path.pathString
 
 class File2 : Iterable<File2>
 {
-    private var file: File
+    var file: File
 
     constructor(file: String): this(File(file))
 
@@ -178,36 +179,55 @@ class File2 : Iterable<File2>
 
     val md5: String get() = hash("MD5")
 
-    private fun hash(method: String): String
-    {
-        val bufferLen = { filelen: Long ->
-            val kb = 1024
-            val mb = 1024 * 1024
-            val gb = 1024 * 1024 * 1024
-            when {
-                filelen < 1 * mb -> 8 * kb
-                filelen < 2 * mb -> 16 * kb
-                filelen < 4 * mb -> 32 * kb
-                filelen < 8 * mb -> 64 * kb
-                filelen < 16 * mb -> 256 * kb
-                filelen < 32 * mb -> 512 * kb
-                filelen < 64 * mb -> 1 * mb
-                filelen < 128 * mb -> 2 * mb
-                filelen < 256 * mb -> 4 * mb
-                filelen < 512 * mb -> 8 * mb
-                filelen < 1 * gb -> 16 * mb
-                else -> 32 * mb
-            }
+    val crc32: String get() {
+        val crc32calculator = CRC32()
+        FileInputStream(file).use {
+            var len = 0
+            val buf = ByteArray(chooseBufferLength(length))
+            while (it.read(buf).also { len = it } != -1)
+                crc32calculator.update(buf, 0, len)
         }
 
+        val value = crc32calculator.value
+        val array = ByteArray(4)
+        array[3] = (value shr (8 * 0) and 0xFF).toByte()
+        array[2] = (value shr (8 * 1) and 0xFF).toByte()
+        array[1] = (value shr (8 * 2) and 0xFF).toByte()
+        array[0] = (value shr (8 * 3) and 0xFF).toByte()
+        return bin2str(array)
+    }
+
+    private fun hash(method: String): String
+    {
         val md = MessageDigest.getInstance(method)
         FileInputStream(file).use {
             var len = 0
-            val buf = ByteArray(bufferLen(length))
+            val buf = ByteArray(chooseBufferLength(length))
             while (it.read(buf).also { len = it } != -1)
                 md.update(buf, 0, len)
         }
         return bin2str(md.digest())
+    }
+
+    private fun chooseBufferLength(length: Long): Int
+    {
+        val kb = 1024
+        val mb = 1024 * 1024
+        val gb = 1024 * 1024 * 1024
+        return when {
+            length < 1 * mb -> 8 * kb
+            length < 2 * mb -> 16 * kb
+            length < 4 * mb -> 32 * kb
+            length < 8 * mb -> 64 * kb
+            length < 16 * mb -> 256 * kb
+            length < 32 * mb -> 512 * kb
+            length < 64 * mb -> 1 * mb
+            length < 128 * mb -> 2 * mb
+            length < 256 * mb -> 4 * mb
+            length < 512 * mb -> 8 * mb
+            length < 1 * gb -> 16 * mb
+            else -> 32 * mb
+        }
     }
 
     private fun bin2str(binary: ByteArray): String

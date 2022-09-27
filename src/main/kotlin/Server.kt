@@ -9,7 +9,8 @@ import kotlin.collections.LinkedHashMap
 class Server(val config: AppConfig) : NanoHTTPD(config.host, config.port)
 {
     private val fmt = SimpleDateFormat("YYYY-MM-dd HH:mm:ss")
-    private var structureInfoCache: String? = null
+    private var structureCacheInSha1: String? = null
+    private var structureCacheInCrc32: String? = null
 
     /**
      * 服务主函数
@@ -51,11 +52,16 @@ class Server(val config: AppConfig) : NanoHTTPD(config.host, config.port)
             {
                 val ne = LinkedHashMap<String, Any>()
                 ne["update"] = "res"
-                ne.putAll(config.configYaml.filter { it.key == "common_mode" || it.key == "once_mode" })
+                ne["common_mode"] = config.configYaml["common_mode"] as List<*>
+                ne["once_mode"] = config.configYaml["once_mode"] as List<*>
+                ne["hash_algorithm"] = "crc32"
                 return ResponseHelper.buildJsonTextResponse(JSONObject(ne).toString(4))
             } else if (path == "/res.json") {
-                regenResCache()
-                return ResponseHelper.buildJsonTextResponse(structureInfoCache!!)
+                regenResSha1Cache()
+                return ResponseHelper.buildJsonTextResponse(structureCacheInSha1!!)
+            } else if (path == "/res_crc32.json") {
+                regenResCrc32Cache()
+                return ResponseHelper.buildJsonTextResponse(structureCacheInCrc32!!)
             } else if (dir != null) { // 禁止访问任何目录
                 return ResponseHelper.buildForbiddenResponse("Directory is unable to show")
             } else if (!path.startsWith("/res/")) { // 不能访问res目录以外的文件
@@ -80,26 +86,34 @@ class Server(val config: AppConfig) : NanoHTTPD(config.host, config.port)
     }
 
     /**
-     * 生成res目录缓存
+     * 生成res目录缓存（sha1算法）
      */
-    private fun regenResCache()
+    private fun regenResSha1Cache()
     {
-        structureInfoCache = JSONArray().also { j -> genCache(config.baseDir + "res").forEach { j.put(it.toJsonObject()) } }.toString()
+        structureCacheInSha1 = JSONArray().also { j -> genCache(config.baseDir + "res", true).forEach { j.put(it.toJsonObject()) } }.toString()
+    }
+
+    /**
+     * 生成res目录缓存（crc32算法）
+     */
+    private fun regenResCrc32Cache()
+    {
+        structureCacheInCrc32 = JSONArray().also { j -> genCache(config.baseDir + "res", false).forEach { j.put(it.toJsonObject()) } }.toString()
     }
 
     /**
      * 生成文件结构信息
      */
-    private fun genCache(directory: File2): List<VirtualFile>
+    private fun genCache(directory: File2, useSha1: Boolean): List<VirtualFile>
     {
         fun getDirname(path: String): String? = path.lastIndexOf("/").run { if (this == -1) null else path.substring(0, this) }
         fun getBasename(path: String): String = path.lastIndexOf("/").run { if (this == -1) path else path.substring(this + 1) }
 
         val baseDir = config.baseDir + "res"
         val hashCacher = HashCacher(baseDir)
-        val cacheFile = File2("cache.json")
+        val cacheFile = File2(if (useSha1) "cache.json" else "cache_crc32.json")
         val cache = cacheFile.run { if (exists) VirtualFile.fromJsonArray(JSONArray(content), "no_name") else null }
-        val diff = cache?.run { FileDiff(this, directory, baseDir, hashCacher).compare() }
+        val diff = cache?.run { FileDiff(this, directory, baseDir, hashCacher, useSha1).compare() }
 
         // 更新res.json缓存
         if (diff?.hasDifferences() == true)
@@ -133,13 +147,13 @@ class Server(val config: AppConfig) : NanoHTTPD(config.host, config.port)
                 val file = baseDir + f
                 val length = file.length
                 val modified = file.modified
-                val hash = hashCacher.getHash(f)
+                val hash = hashCacher.getHash(f, useSha1)
 
                 dir.files += VirtualFile(filename, length, hash, modified)
             }
         }
 
-        val result = cache?.files ?: VirtualFile.fromRealFile(directory).files
+        val result = cache?.files ?: VirtualFile.fromRealFile(directory, useSha1).files
 
         // 落盘
         if (diff == null || diff.hasDifferences())

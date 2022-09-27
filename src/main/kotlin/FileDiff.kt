@@ -6,7 +6,7 @@
  * @param base 基准目录，用来计算相对路径
  * @param hashCacher hash缓存对象
  */
-class FileDiff(val current: VirtualFile, val contrast: File2, val base: File2, val hashCacher: HashCacher)
+class FileDiff(val current: VirtualFile, val contrast: File2, val base: File2, val hashCacher: HashCacher, val useSha1: Boolean)
 {
     private val differences: Difference = Difference()
 
@@ -22,7 +22,7 @@ class FileDiff(val current: VirtualFile, val contrast: File2, val base: File2, v
 
             if(corresponding == null) // 如果文件不存在的话，就不用校验了，可以直接进行下载
             {
-                markAsNew(VirtualFile.fromRealFile(c), c)
+                markAsNew(VirtualFile.fromRealFile(c, useSha1), c)
                 continue
             }
 
@@ -81,7 +81,7 @@ class FileDiff(val current: VirtualFile, val contrast: File2, val base: File2, v
         if(a.modified == b.modified)
             return true
 
-        return if(hashCacher.getHash(b.relativizedBy(base)) != a.hash) {
+        return if(hashCacher.getHash(b.relativizedBy(base), useSha1) != a.hash) {
             false
         } else {
             b._file.setLastModified(a.modified)

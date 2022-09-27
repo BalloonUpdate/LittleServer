@@ -7,14 +7,17 @@ class HashCacher(val base: File2)
 {
     private val cache = mutableMapOf<String, String>()
 
-    fun getHash(relativePath: String): String
+    fun getHash(relativePath: String, useSha1: Boolean): String
     {
-        if (relativePath !in cache)
+        val key = (if (useSha1) "sha1|" else "crc32|") + relativePath
+
+        if (key !in cache)
         {
             val file = base + relativePath
-            cache[relativePath] = file.sha1
+            cache[key] = if (useSha1) file.sha1 else file.crc32
+            println(cache[key])
         }
 
-        return cache[relativePath]!!
+        return cache[key]!!
     }
 }
